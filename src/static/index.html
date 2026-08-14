@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Threat Hunter — SOC Command Center</title>
+  
+  <!-- Google Fonts & Vis.js & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #080c14;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-border: rgba(56, 189, 248, 0.15);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --accent-cyan: #38bdf8;
+      --accent-blue: #3b82f6;
+      --accent-purple: #a855f7;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      
+      --glow-cyan: 0 0 20px rgba(56, 189, 248, 0.35);
+      --glow-green: 0 0 20px rgba(16, 185, 129, 0.4);
+      --glow-red: 0 0 20px rgba(239, 68, 68, 0.4);
+
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header Styling */
+    header {
+      background: rgba(11, 17, 32, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--bg-card-border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      color: #fff;
+      box-shadow: var(--glow-cyan);
+    }
+
+    .brand-text h1 {
+      font-family: var(--font-heading);
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #ffffff, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .system-status {
+      display: flex;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      background: rgba(30, 41, 59, 0.6);
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+    }
+
+    .dot.paused {
+      background: var(--accent-amber);
+      box-shadow: 0 0 10px var(--accent-amber);
+    }
+
+    .dot.pulse {
+      animation: pulseGlow 1.5s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 15px var(--accent-green); }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* Quick Action Toolbar */
+    .action-bar {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      background: rgba(30, 41, 59, 0.8);
+      color: var(--text-main);
+      border: 1px solid var(--bg-card-border);
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.25s ease;
+    }
+
+    .btn:hover {
+      background: var(--accent-blue);
+      border-color: var(--accent-cyan);
+      box-shadow: var(--glow-cyan);
+      transform: translateY(-2px);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none;
+      box-shadow: var(--glow-green);
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(135deg, #34d399, #10b981);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      border: none;
+    }
+
+    .btn-danger:hover {
+      box-shadow: var(--glow-red);
+    }
+
+    /* Dashboard Layout */
+    .container {
+      padding: 1.75rem 2rem;
+      max-width: 1700px;
+      margin: 0 auto;
+    }
+
+    /* Metric Cards Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(12px);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: transform 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--accent-cyan);
+    }
+
+    .metric-info h3 {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.4rem;
+    }
+
+    .metric-value {
+      font-family: var(--font-heading);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .metric-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+
+    .icon-cyan { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); }
+    .icon-red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+    .icon-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+    .icon-purple { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+
+    /* Navigation Tabs */
+    .tabs-bar {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--bg-card-border);
+      margin-bottom: 1.5rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem 1.25rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-cyan);
+      border-bottom-color: var(--accent-cyan);
+    }
+
+    /* Tab Panels */
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Network Graph Section */
+    .graph-container {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.5rem;
+      height: 600px;
+    }
+
+    .graph-viewport {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(12px);
+      border-radius: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #vis-graph {
+      width: 100%;
+      height: 100%;
+    }
+
+    .graph-inspector {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      backdrop-filter: blur(12px);
+      border-radius: 14px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .inspector-header {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      border-bottom: 1px solid var(--bg-card-border);
+      padding-bottom: 0.75rem;
+      color: var(--accent-cyan);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+
+    .info-label { color: var(--text-muted); }
+    .info-val { font-weight: 600; color: #fff; }
+
+    /* Threat Cards & Approval Queue */
+    .cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .threat-card, .approval-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+
+    .threat-card:hover, .approval-card:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card-hover);
+    }
+
+    .severity-badge {
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+    .badge-high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .badge-medium { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; }
+
+    /* Incident Report View */
+    .report-box {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 14px;
+      padding: 2rem;
+      font-family: var(--font-body);
+      line-height: 1.7;
+    }
+
+    .report-box h2 {
+      font-family: var(--font-heading);
+      color: var(--accent-cyan);
+      margin-bottom: 1rem;
+    }
+
+    .report-box pre {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 1.25rem;
+      border-radius: 8px;
+      font-family: var(--font-code);
+      font-size: 0.9rem;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .export-bar {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--bg-card-border);
+    }
+
+    /* Tables */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: rgba(30, 41, 59, 0.8);
+      padding: 1rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Notification Toast */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent-cyan);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      box-shadow: var(--glow-cyan);
+      display: none;
+      z-index: 1000;
+      font-weight: 600;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Section -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div class="brand-text">
+        <h1>Autonomous Threat Hunter</h1>
+        <p>AI Graph Neural Network & Real-Time SOC Command Center</p>
+      </div>
+    </div>
+
+    <div class="system-status">
+      <div class="status-badge" id="scan-status-badge">
+        <div class="dot paused" id="scan-dot"></div> <span id="scan-status-text">Scan Paused</span>
+      </div>
+      <div class="status-badge"><div class="dot"></div> Kafka Stream</div>
+      <div class="status-badge"><div class="dot"></div> Neo4j Graph</div>
+      <div class="status-badge"><div class="dot"></div> PyTorch GNN</div>
+    </div>
+
+    <div class="action-bar">
+      <!-- Start/Stop Continuous Scan Button -->
+      <button class="btn btn-success" id="btn-toggle-scan" onclick="toggleContinuousScan()">
+        <i class="fa-solid fa-play"></i> Start Scan
+      </button>
+
+      <button class="btn btn-danger" onclick="triggerSimulatedAttack()">
+        <i class="fa-solid fa-bolt"></i> Simulate APT Attack
+      </button>
+      
+      <button class="btn" onclick="runThreatPrediction()">
+        <i class="fa-solid fa-brain"></i> Single Hunt
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- KPI Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Network Nodes</h3>
+          <div class="metric-value" id="val-nodes">0</div>
+        </div>
+        <div class="metric-icon icon-cyan">
+          <i class="fa-solid fa-network-wired"></i>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Threat Edges</h3>
+          <div class="metric-value" id="val-edges">0</div>
+        </div>
+        <div class="metric-icon icon-purple">
+          <i class="fa-solid fa-diagram-project"></i>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Detected Threats</h3>
+          <div class="metric-value" id="val-threats">0</div>
+        </div>
+        <div class="metric-icon icon-red">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-info">
+          <h3>Pending Approvals</h3>
+          <div class="metric-value" id="val-pending">0</div>
+        </div>
+        <div class="metric-icon icon-amber">
+          <i class="fa-solid fa-user-shield"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="switchTab('tab-graph')">
+        <i class="fa-solid fa-diagram-project"></i> Network Topology Graph
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-threats')">
+        <i class="fa-solid fa-radar"></i> Active Threats
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-approvals')">
+        <i class="fa-solid fa-user-shield"></i> Action Approvals Gate
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-reports')">
+        <i class="fa-solid fa-file-contract"></i> AI Incident Reports
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-audit')">
+        <i class="fa-solid fa-list-check"></i> Audit Log Trail
+      </button>
+    </div>
+
+    <!-- Tab 1: Interactive Network Topology Graph -->
+    <div id="tab-graph" class="tab-panel active">
+      <div class="graph-container">
+        <div class="graph-viewport">
+          <div id="vis-graph"></div>
+        </div>
+        <div class="graph-inspector">
+          <div class="inspector-header">
+            <i class="fa-solid fa-magnifying-glass"></i> Node Inspector
+          </div>
+          <div id="inspector-content">
+            <p style="color: var(--text-muted); font-size: 0.88rem;">Click any node in the graph to inspect its risk metrics and attack details.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Active Threats -->
+    <div id="tab-threats" class="tab-panel">
+      <div class="cards-list" id="threats-list">
+        <p style="color: var(--text-muted);">No active threats detected. Click <strong>Start Scan</strong> to continuously monitor the network.</p>
+      </div>
+    </div>
+
+    <!-- Tab 3: Action Approval Gate -->
+    <div id="tab-approvals" class="tab-panel">
+      <div class="cards-list" id="approvals-list">
+        <p style="color: var(--text-muted);">No pending defense actions requiring approval.</p>
+      </div>
+    </div>
+
+    <!-- Tab 4: AI Incident Reports -->
+    <div id="tab-reports" class="tab-panel">
+      <div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
+        <button class="btn btn-primary" onclick="generateReport()">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Incident Report (Llama 3)
+        </button>
+      </div>
+      <div class="report-box" id="report-output">
+        <p style="color: var(--text-muted);">Click <strong>Generate AI Incident Report</strong> to create a plain-English report for security management.</p>
+      </div>
+    </div>
+
+    <!-- Tab 5: Audit Log Trail -->
+    <div id="tab-audit" class="tab-panel">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Event Type</th>
+              <th>Action</th>
+              <th>Model / Component</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="audit-table-body">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading audit logs...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast"></div>
+
+  <script>
+    let network = null;
+    let scanIntervalTimer = null;
+    let isScanning = false;
+    let currentReportContent = "";
+    let currentIncidentId = "INC-001";
+
+    // --- Tab Switcher ---
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+
+      if (tabId === 'tab-graph' && network) {
+        network.redraw();
+        network.fit();
+      }
+    }
+
+    // --- Toast Notification ---
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    }
+
+    // --- Toggle Continuous Scan ---
+    async function toggleContinuousScan() {
+      const btn = document.getElementById('btn-toggle-scan');
+      const dot = document.getElementById('scan-dot');
+      const statusText = document.getElementById('scan-status-text');
+
+      if (!isScanning) {
+        // Start Continuous Scan
+        isScanning = true;
+        btn.innerHTML = '<i class="fa-solid fa-stop"></i> Stop Scan';
+        btn.className = 'btn btn-danger';
+        dot.className = 'dot pulse';
+        statusText.innerText = 'Scanning Active';
+        showToast('🟢 Continuous threat scan started (Scanning every 4s)...');
+
+        // Immediately run first cycle
+        runThreatPrediction();
+
+        // Set interval timer
+        scanIntervalTimer = setInterval(() => {
+          runThreatPrediction();
+        }, 4000);
+
+        try { await fetch('/scan/start', { method: 'POST' }); } catch(e){}
+
+      } else {
+        // Stop Continuous Scan
+        isScanning = false;
+        clearInterval(scanIntervalTimer);
+        scanIntervalTimer = null;
+
+        btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Scan';
+        btn.className = 'btn btn-success';
+        dot.className = 'dot paused';
+        statusText.innerText = 'Scan Paused';
+        showToast('⏸ Continuous threat scan paused.');
+
+        try { await fetch('/scan/stop', { method: 'POST' }); } catch(e){}
+      }
+    }
+
+    // --- Fetch Graph Snapshot ---
+    async function loadGraph() {
+      try {
+        const res = await fetch('/graph/snapshot');
+        const data = await res.json();
+        
+        document.getElementById('val-nodes').innerText = data.node_count || 0;
+        document.getElementById('val-edges').innerText = data.edge_count || 0;
+
+        const nodes = data.snapshot.nodes.map(n => {
+          let color = '#38bdf8'; // cyan
+          if (n.label === 'User') color = '#a855f7';
+          if (n.label === 'Process') color = '#f59e0b';
+          if (n.risk_score > 0.6) color = '#ef4444';
+
+          return {
+            id: n.id,
+            label: `${n.name}\n[${n.label}]`,
+            color: { background: color, border: '#fff' },
+            font: { color: '#fff', face: 'Inter' },
+            shape: 'dot',
+            size: 18 + (n.risk_score * 15),
+            risk: n.risk_score,
+            nodeData: n
+          };
+        });
+
+        const edges = data.snapshot.edges.map(e => ({
+          from: e.source,
+          to: e.target,
+          label: e.rel_type,
+          color: { color: 'rgba(255,255,255,0.2)' },
+          font: { color: '#94a3b8', size: 10 }
+        }));
+
+        const container = document.getElementById('vis-graph');
+        const visData = {
+          nodes: new vis.DataSet(nodes),
+          edges: new vis.DataSet(edges)
+        };
+
+        const options = {
+          physics: { barnesHut: { gravitationalConstant: -3000 } },
+          interaction: { hover: true }
+        };
+
+        network = new vis.Network(container, visData, options);
+
+        network.on('click', function(params) {
+          if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const selectedNode = nodes.find(n => n.id === nodeId);
+            inspectNode(selectedNode.nodeData);
+          }
+        });
+
+      } catch (err) {
+        console.error('Error loading graph:', err);
+      }
+    }
+
+    function inspectNode(node) {
+      const el = document.getElementById('inspector-content');
+      el.innerHTML = `
+        <div class="info-row"><span class="info-label">Node Name:</span><span class="info-val">${node.name}</span></div>
+        <div class="info-row"><span class="info-label">Type:</span><span class="info-val">${node.label}</span></div>
+        <div class="info-row"><span class="info-label">Risk Score:</span><span class="info-val" style="color: ${node.risk_score > 0.5 ? '#ef4444' : '#10b981'};">${(node.risk_score * 100).toFixed(1)}%</span></div>
+        <div class="info-row"><span class="info-label">Node ID:</span><span class="info-val" style="font-size: 0.75rem;">${node.id}</span></div>
+      `;
+    }
+
+    // --- Run Threat Prediction Cycle ---
+    async function runThreatPrediction() {
+      try {
+        const res = await fetch('/threats');
+        const data = await res.json();
+        
+        document.getElementById('val-threats').innerText = data.threat_count || 0;
+        renderThreatsList(data.attack_paths || []);
+        loadGraph();
+        loadPendingApprovals();
+        loadAuditLog();
+      } catch (err) {
+        console.error('Prediction cycle error:', err);
+      }
+    }
+
+    function renderThreatsList(paths) {
+      const container = document.getElementById('threats-list');
+      if (!paths || paths.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">No active threats detected in this cycle.</p>';
+        return;
+      }
+
+      container.innerHTML = paths.map(p => `
+        <div class="threat-card">
+          <div>
+            <span class="severity-badge badge-${p.defense.severity.toLowerCase()}">${p.defense.severity}</span>
+            <strong style="margin-left: 0.75rem; font-size: 1.05rem;">${p.node.node_name}</strong>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">(${p.node.node_label})</span>
+            <div style="margin-top: 0.5rem; font-size: 0.88rem; color: var(--text-muted);">
+              <strong>MITRE Technique:</strong> ${p.mitre.technique_id} — ${p.mitre.technique_name} (${p.mitre.tactic})
+            </div>
+            <div style="font-size: 0.85rem; color: var(--accent-cyan); margin-top: 0.25rem;">
+              <strong>Recommended Action:</strong> ${p.defense.action}
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-red);">${(p.node.threat_score * 100).toFixed(1)}%</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Threat Score</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- Load Pending Approvals ---
+    async function loadPendingApprovals() {
+      try {
+        const res = await fetch('/actions/pending');
+        const data = await res.json();
+
+        document.getElementById('val-pending').innerText = data.pending_count || 0;
+        const container = document.getElementById('approvals-list');
+
+        if (!data.actions || data.actions.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-muted);">No pending defense actions requiring approval.</p>';
+          return;
+        }
+
+        container.innerHTML = data.actions.map(a => `
+          <div class="approval-card">
+            <div>
+              <span class="severity-badge badge-${a.severity.toLowerCase()}">${a.severity}</span>
+              <strong style="margin-left: 0.75rem;">${a.action}</strong> → <span>${a.target}</span>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Action ID: ${a.action_id}</div>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-primary" onclick="respondAction('${a.action_id}', true)">Approve</button>
+              <button class="btn btn-danger" onclick="respondAction('${a.action_id}', false)">Reject</button>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (err) {
+        console.error('Error loading pending approvals:', err);
+      }
+    }
+
+    async function respondAction(actionId, approved) {
+      try {
+        const res = await fetch('/actions/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action_id: actionId, approver: 'soc_analyst', approved: approved })
+        });
+        showToast(approved ? '✅ Action Approved!' : '❌ Action Rejected!');
+        loadPendingApprovals();
+      } catch (err) {
+        showToast('Error sending approval decision.');
+      }
+    }
+
+    // --- Generate AI Incident Report ---
+    async function generateReport() {
+      showToast('🤖 Generating LLM Incident Report (Llama 3)...');
+      try {
+        const res = await fetch('/incidents/generate', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.message) {
+          document.getElementById('report-output').innerHTML = `<p style="color: var(--text-muted);">${data.message}</p>`;
+          return;
+        }
+
+        currentIncidentId = data.incident_id || 'INC-001';
+        currentReportContent = data.full_report || JSON.stringify(data, null, 2);
+
+        document.getElementById('report-output').innerHTML = `
+          <h2><i class="fa-solid fa-file-shield"></i> Incident Report #${currentIncidentId}</h2>
+          <p style="margin-bottom: 1rem;"><strong>Executive Brief:</strong> ${data.executive_brief || ''}</p>
+          <pre>${currentReportContent}</pre>
+          
+          <div class="export-bar">
+            <button class="btn btn-primary" onclick="downloadMarkdownReport()">
+              <i class="fa-solid fa-download"></i> Download Markdown (.md)
+            </button>
+            <button class="btn" onclick="printPdfReport()">
+              <i class="fa-solid fa-print"></i> Export / Print PDF
+            </button>
+          </div>
+        `;
+        showToast('✅ Incident report generated!');
+      } catch (err) {
+        showToast('❌ Report generation failed.');
+      }
+    }
+
+    // --- Export Report as Markdown (.md) File ---
+    function downloadMarkdownReport() {
+      if (!currentReportContent) {
+        showToast('⚠️ No report content to export!');
+        return;
+      }
+      const blob = new Blob([currentReportContent], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Incident_Report_${currentIncidentId}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('📥 Report downloaded as Markdown!');
+    }
+
+    // --- Print / Export PDF Report ---
+    function printPdfReport() {
+      const printWin = window.open('', '_blank');
+      printWin.document.write(`
+        <html>
+          <head>
+            <title>Incident Report ${currentIncidentId}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; color: #111; }
+              h1 { color: #0284c7; }
+              pre { background: #f1f5f9; padding: 1.5rem; border-radius: 8px; font-family: monospace; white-space: pre-wrap; }
+            </style>
+          </head>
+          <body>
+            <h1>Incident Report #${currentIncidentId}</h1>
+            <pre>${currentReportContent}</pre>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+      printWin.focus();
+      printWin.print();
+    }
+
+    // --- Trigger Simulated Attack ---
+    async function triggerSimulatedAttack() {
+      showToast('⚡ Triggering Simulated APT Attack Sequence...');
+      try {
+        const res = await fetch('/simulate/apt', { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message || 'APT attack sequence started.');
+        setTimeout(() => { runThreatPrediction(); }, 2500);
+      } catch (err) {
+        showToast('❌ Failed to trigger simulation.');
+      }
+    }
+
+    // --- Load Audit Trail ---
+    async function loadAuditLog() {
+      try {
+        const res = await fetch('/audit');
+        const data = await res.json();
+        const tbody = document.getElementById('audit-table-body');
+
+        if (!data.entries || data.entries.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No audit entries logged yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.entries.map(e => `
+          <tr>
+            <td style="font-family: var(--font-code); font-size: 0.8rem;">${new Date(e.timestamp).toLocaleTimeString()}</td>
+            <td><strong>${e.event_type}</strong></td>
+            <td>${e.action || e.executive_brief || '-'}</td>
+            <td>${e.model_version || e.approver || 'system'}</td>
+            <td>${e.confidence ? (e.confidence * 100).toFixed(0) + '%' : '-'}</td>
+          </tr>
+        `).join('');
+
+      } catch (err) {
+        console.error('Error loading audit log:', err);
+      }
+    }
+
+    // --- Initial Load ---
+    window.addEventListener('DOMContentLoaded', () => {
+      loadGraph();
+      loadPendingApprovals();
+      loadAuditLog();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+# ============================================================
+#  Autonomous Threat Hunter — .gitignore
+# ============================================================
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Model weights (large files)
+data/models/*.pt
+data/models/*.pth
+
+# MITRE STIX bundle (large file, download separately)
+data/mitre/enterprise-attack.json
+
+# Audit logs (contain sensitive data)
+audit_logs/
+
+# Neo4j data
+neo4j/data/
+neo4j/logs/
+
+# Test output
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Docker volumes
+kafka_data/
+ollama_data/
