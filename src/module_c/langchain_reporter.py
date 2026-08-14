@@ -77,24 +77,38 @@ class LangChainReporter:
 
     def _init_llm(self):
         """Initialize the correct LLM based on settings."""
-        if self.settings.llm_provider == "openai" and self.settings.openai_api_key:
+        if self.settings.llm_provider == "groq" and self.settings.groq_api_key:
+            from langchain_openai import ChatOpenAI
+            logger.info(f"Using Groq Free AI: {self.settings.groq_model}")
+            return ChatOpenAI(
+                model=self.settings.groq_model,
+                api_key=self.settings.groq_api_key,
+                base_url="https://api.groq.com/openai/v1",
+                temperature=0.2,
+                max_tokens=2000,
+            )
+        elif self.settings.llm_provider == "openai" and self.settings.openai_api_key:
             from langchain_openai import ChatOpenAI
             logger.info(f"Using OpenAI: {self.settings.openai_model}")
             return ChatOpenAI(
                 model=self.settings.openai_model,
                 api_key=self.settings.openai_api_key,
-                temperature=0.2,   # Low temp for factual reports
+                temperature=0.2,
                 max_tokens=2000,
             )
         else:
-            from langchain_ollama import ChatOllama
-            logger.info(f"Using Ollama: {self.settings.ollama_model} @ {self.settings.ollama_base_url}")
-            return ChatOllama(
-                model=self.settings.ollama_model,
-                base_url=self.settings.ollama_base_url,
-                temperature=0.2,
-                num_predict=2000,
-            )
+            try:
+                from langchain_ollama import ChatOllama
+                logger.info(f"Using Ollama: {self.settings.ollama_model} @ {self.settings.ollama_base_url}")
+                return ChatOllama(
+                    model=self.settings.ollama_model,
+                    base_url=self.settings.ollama_base_url,
+                    temperature=0.2,
+                    num_predict=2000,
+                )
+            except Exception as e:
+                logger.warning(f"Ollama/LLM unavailable ({e}). Using mock cloud LLM reporter.")
+                return None
 
     def generate_incident_report(
         self,

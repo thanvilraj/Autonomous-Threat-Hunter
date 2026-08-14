@@ -29,6 +29,7 @@ from src.module_b.defense_engine import DefenseEngine
 from src.module_b.audit_logger import AuditLogger
 from src.module_c.langchain_reporter import LangChainReporter
 from src.module_c.threat_intel import ThreatIntelFeed
+from src.api.mcp_router import mcp_router
 
 
 # ── App State (shared across requests) ───────────────────────
@@ -105,6 +106,8 @@ app.add_middleware(
     allow_methods  = ["*"],
     allow_headers  = ["*"],
 )
+
+app.include_router(mcp_router)
 
 
 # ── Request / Response Models ─────────────────────────────────

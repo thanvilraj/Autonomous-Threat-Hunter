@@ -39,11 +39,13 @@ class Settings(BaseSettings):
     redis_password: str = Field(default="redispass123")
 
     # ── LLM ──────────────────────────────────────────────────
-    llm_provider: str = Field(default="ollama")  # "ollama" or "openai"
+    llm_provider: str = Field(default="groq")  # "groq", "ollama", or "openai"
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="llama3")
     openai_api_key: str = Field(default="")
     openai_model: str = Field(default="gpt-4o-mini")
+    groq_api_key: str = Field(default="")
+    groq_model: str = Field(default="llama-3.3-70b-versatile")
 
     # ── Threat Intel ─────────────────────────────────────────
     otx_api_key: str = Field(default="")
